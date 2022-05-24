@@ -153,12 +153,62 @@ func NewGame(players int) (Game, error) {
 	return g, nil
 }
 
+func (g *Game) Claim(player Player, claim Cards) error {
+	if s := g.state(); s != StateClaiming {
+		return fmt.Errorf("palyer: %d tried to claim in state %v", player, s)
+	}
+	g.claims[player] = &claim
+	return nil
+}
+
+func (g *Game) Play(from, to Player) error {
+	if s := g.state(); s != StatePlaying {
+		return fmt.Errorf("player: %d tried to play in state %v", from, s)
+	}
+	if g.currentPlayer != from {
+		return fmt.Errorf("player: %d tried to play, but currentPlayer is: %d", from, g.currentPlayer)
+	}
+	g.currentPlayer = to
+	card := g.hands[to].draw()
+	switch card {
+	case CardNeutral:
+		g.revealedCards.Neutral++
+	case CardGood:
+		g.revealedCards.Good++
+	case CardBad:
+		g.revealedCards.Bad++
+	}
+	if g.cardsPlayedInRound() == 0 {
+		for p := Player(0); p < g.playerCount; p++ {
+			g.claims[p] = nil
+		}
+	}
+	return nil
+}
+
+func (g *Game) round() uint8 {
+	return g.revealedCards.sum() / uint8(g.playerCount)
+}
+
+func (g *Game) cardsPlayedInRound() uint8 {
+	return g.revealedCards.sum() / uint8(g.playerCount)
+}
+
 func (g *Game) state() State {
 	for _, c := range g.claims {
 		if c == nil {
 			return StateClaiming
 		}
 	}
-	// TODO continue here
+	deck := cardDeck(g.playerCount)
+	if g.revealedCards.Bad == deck.Bad {
+		return StateWinBad
+	}
+	if g.revealedCards.Good == deck.Good {
+		return StateWinGood
+	}
+	if g.round() == 4 {
+		return StateWinBad
+	}
 	return StatePlaying
 }
