@@ -132,24 +132,12 @@ func NewGame(players int) (Game, error) {
 	}
 	g.playerCount = Player(players)
 	g.claims = make([]*Cards, players)
-	deck := cardDeck(g.playerCount)
+	g.hands = make([]Cards, players)
 	roles := roleDeck(g.playerCount)
 	for i := Player(0); i < g.playerCount; i++ {
 		g.roles = append(g.roles, roles.draw())
-		g.hands = append(g.hands, Cards{})
-		for j := 0; j < 5; j++ {
-			card := deck.draw()
-			cards := &g.hands[i]
-			switch card {
-			case CardNeutral:
-				cards.Neutral++
-			case CardGood:
-				cards.Good++
-			case CardBad:
-				cards.Bad++
-			}
-		}
 	}
+	g.deal()
 	return g, nil
 }
 
@@ -178,12 +166,38 @@ func (g *Game) Play(from, to Player) error {
 	case CardBad:
 		g.revealedCards.Bad++
 	}
-	if g.cardsPlayedInRound() == 0 {
-		for p := Player(0); p < g.playerCount; p++ {
-			g.claims[p] = nil
+	if g.cardsPlayedInRound() != 0 {
+		return nil
+	}
+	// round ended
+	for p := Player(0); p < g.playerCount; p++ {
+		g.claims[p] = nil
+	}
+	g.deal()
+	return nil
+}
+
+func (g *Game) deal() {
+	deck := cardDeck(g.playerCount)
+	deck.Neutral -= g.revealedCards.Neutral
+	deck.Good -= g.revealedCards.Good
+	deck.Bad -= g.revealedCards.Bad
+	toDraw := 5 - g.round()
+	for p := Player(0); p < g.playerCount; p++ {
+		g.hands[p] = Cards{}
+		cards := &g.hands[p]
+		for i := uint8(0); i < toDraw; i++ {
+			card := deck.draw()
+			switch card {
+			case CardNeutral:
+				cards.Neutral++
+			case CardGood:
+				cards.Good++
+			case CardBad:
+				cards.Bad++
+			}
 		}
 	}
-	return nil
 }
 
 func (g *Game) round() uint8 {
@@ -191,7 +205,7 @@ func (g *Game) round() uint8 {
 }
 
 func (g *Game) cardsPlayedInRound() uint8 {
-	return g.revealedCards.sum() / uint8(g.playerCount)
+	return g.revealedCards.sum() % uint8(g.playerCount)
 }
 
 func (g *Game) state() State {
