@@ -209,11 +209,6 @@ func (g *Game) cardsPlayedInRound() uint8 {
 }
 
 func (g *Game) state() State {
-	for _, c := range g.claims {
-		if c == nil {
-			return StateClaiming
-		}
-	}
 	deck := cardDeck(g.playerCount)
 	if g.revealedCards.Bad == deck.Bad {
 		return StateWinBad
@@ -223,6 +218,11 @@ func (g *Game) state() State {
 	}
 	if g.round() == 4 {
 		return StateWinBad
+	}
+	for _, c := range g.claims {
+		if c == nil {
+			return StateClaiming
+		}
 	}
 	return StatePlaying
 }

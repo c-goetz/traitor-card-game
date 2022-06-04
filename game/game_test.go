@@ -157,6 +157,59 @@ func TestHappyPathBadWinBadCards(t *testing.T) {
 	}
 }
 
+func TestHappyPathBadWinTurnsExhausted(t *testing.T) {
+	rand.Seed(42)
+	game, err := NewGame(4)
+	if err != nil {
+		t.Fatalf("could not create game: %v", err)
+	}
+	g := testGame{game, t}
+	g.currentPlayer = 1
+	g.claimTruth()
+	// 4 player deck: 12, 6, 2
+	g.hands[0] = Cards{0, 5, 0}
+	g.hands[1] = Cards{5, 0, 0}
+	g.hands[2] = Cards{2, 1, 2}
+	g.hands[3] = Cards{5, 0, 0}
+	g.tPlay(1, 3)
+	g.tPlay(3, 1)
+	g.tPlay(1, 3)
+	g.tPlay(3, 1)
+	g.claimTruth()
+	// deck: 8, 6, 2
+	g.hands[0] = Cards{0, 4, 0}
+	g.hands[1] = Cards{4, 0, 0}
+	g.hands[2] = Cards{0, 2, 2}
+	g.hands[3] = Cards{4, 0, 0}
+	g.tPlay(1, 3)
+	g.tPlay(3, 1)
+	g.tPlay(1, 3)
+	g.tPlay(3, 1)
+	g.claimTruth()
+	// deck: 4, 6, 2
+	g.hands[0] = Cards{0, 2, 1}
+	g.hands[1] = Cards{2, 1, 0}
+	g.hands[2] = Cards{0, 2, 1}
+	g.hands[3] = Cards{2, 1, 0}
+	g.tPlay(1, 3)
+	g.tPlay(3, 1)
+	g.tPlay(1, 3)
+	g.tPlay(3, 1)
+	g.claimTruth()
+	// deck: 0, 6, 2
+	g.hands[0] = Cards{0, 1, 1}
+	g.hands[1] = Cards{1, 1, 0}
+	g.hands[2] = Cards{0, 1, 1}
+	g.hands[3] = Cards{0, 2, 0}
+	g.tPlay(1, 3)
+	g.tPlay(3, 1)
+	g.tPlay(1, 3)
+	g.tPlay(3, 1)
+	if g.state() != StateWinBad || g.revealedCards.Good == 6 {
+		t.Fatalf("expected bad to win by playing 4 turns without finding all good cards, got %v", g.state())
+	}
+}
+
 type testGame struct {
 	Game
 	*testing.T
