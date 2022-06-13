@@ -4,7 +4,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
+	"sync"
+	"time"
 
 	"github.com/c-goetz/traitor-card-game/game"
 )
@@ -17,35 +20,76 @@ Or is just timing out the lobby enough?
 One Player should be host. Hos should have special rights like removing players from lobby.
 */
 
-type Lobby struct {
-	game         *game.Game
-	playerNames  []string
-	playerTokens []string
-	// TODO channels for notification
+var lobbies struct {
+	sync.RWMutex
+	ls map[uint64]Lobby
 }
 
-func (l *Lobby) Join(name string) error {
-	if n := len(l.playerNames); n == 10 {
-		return errors.New("max lobby size reached")
+type Player struct {
+	name     string
+	token    string
+	lastSeen time.Time
+	channel  *chan string
+}
+
+type Lobby struct {
+	game    *game.Game
+	uuid    uint64
+	players []Player
+}
+
+func (player *Player) register(channel *chan string) {
+	player.channel = channel
+}
+
+func (player *Player) unregisterChannel() {
+	player.channel = nil
+}
+
+func NewPlayer(name string, token string, channel *chan string) Player {
+	return Player{name, token, time.Now(), channel}
+}
+
+func newLobby(players int) (Lobby, error) {
+	g, err := game.NewGame(players)
+	if err != nil {
+		return Lobby{}, err
 	}
-	for _, n := range l.playerNames {
-		if n == name {
-			return fmt.Errorf("player with name %s already joined", n)
+	lobbyUID, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt))
+	if err != nil {
+		return Lobby{}, fmt.Errorf("generating Lobby UID: %v", err)
+	}
+	return Lobby{&g,
+			lobbyUID.Uint64(),
+			make([]Player, players),
+		},
+		nil
+}
+
+func (l *Lobby) Join(name string) (Player, error) {
+	if n := len(l.players); n == 10 {
+		return Player{}, errors.New("max lobby size reached")
+	}
+	for _, player := range l.players {
+		if player.name == name {
+			return Player{}, fmt.Errorf("player with name %s already joined", player.name)
 		}
 	}
-	l.playerNames = append(l.playerNames, name)
-	token, err := rand.Int(rand.Reader, big.NewInt(1_000_000_000))
+	token, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt))
 	if err != nil {
-		return fmt.Errorf("generating token: %v", err)
+		return Player{}, fmt.Errorf("generating token: %v", err)
 	}
-	l.playerTokens = append(l.playerTokens, token.String())
-	// TODO channels
+	player := NewPlayer(name, token.String(), nil)
+	l.players = append(l.players, player)
+
 	// TODO update player views?
-	return nil
+	return player, nil
 }
 
 func (l *Lobby) Start() error {
-	n := len(l.playerNames)
+	lobbies.Lock()
+	defer lobbies.Unlock()
+	n := len(l.players)
 	if n < 3 || n > 10 {
 		return fmt.Errorf("can't start with %d players", n)
 	}
@@ -54,6 +98,19 @@ func (l *Lobby) Start() error {
 		return err
 	}
 	l.game = &g
+	lobbies.ls[l.uuid] = *l
 	// TODO update player views?
+	return nil
+}
+func (l *Lobby) Close() error {
+	lobbies.Lock()
+	defer lobbies.Unlock()
+
+	if _, ok := lobbies.ls[l.uuid]; ok {
+		delete(lobbies.ls, l.uuid)
+	} else {
+		return fmt.Errorf("lobby not found UID: %v", l.uuid)
+	}
+
 	return nil
 }
