@@ -30,6 +30,7 @@ type Player struct {
 	token    string
 	lastSeen time.Time
 	channel  *chan string
+	uuid     game.Player
 }
 
 type Lobby struct {
@@ -46,24 +47,24 @@ func (player *Player) unregisterChannel() {
 	player.channel = nil
 }
 
-func NewPlayer(name string, token string, channel *chan string) Player {
-	return Player{name, token, time.Now(), channel}
+func (l *Lobby) NewPlayer(name string, token string, channel *chan string) Player {
+	return Player{name, token, time.Now(), channel, game.Player(len(l.players))}
 }
 
-func newLobby(players int) (Lobby, error) {
-	g, err := game.NewGame(players)
-	if err != nil {
-		return Lobby{}, err
-	}
+func createLobby(host string) (Player, Lobby, error) {
 	lobbyUID, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt))
 	if err != nil {
-		return Lobby{}, fmt.Errorf("generating Lobby UID: %v", err)
+		return Player{}, Lobby{}, fmt.Errorf("generating Lobby UID: %v", err)
 	}
-	return Lobby{&g,
-			lobbyUID.Uint64(),
-			make([]Player, players),
-		},
-		nil
+	lobby := Lobby{nil,
+		lobbyUID.Uint64(),
+		[]Player{},
+	}
+	player, err := lobby.Join(host)
+	if err != nil {
+		return Player{}, Lobby{}, fmt.Errorf("could not create player with name: %v", host)
+	}
+	return player, lobby, nil
 }
 
 func (l *Lobby) Join(name string) (Player, error) {
@@ -79,7 +80,7 @@ func (l *Lobby) Join(name string) (Player, error) {
 	if err != nil {
 		return Player{}, fmt.Errorf("generating token: %v", err)
 	}
-	player := NewPlayer(name, token.String(), nil)
+	player := l.NewPlayer(name, token.String(), nil)
 	l.players = append(l.players, player)
 
 	// TODO update player views?
