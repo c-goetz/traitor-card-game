@@ -119,10 +119,10 @@ type Player uint8
 type Game struct {
 	playerCount   Player
 	currentPlayer Player
-	revealedCards Cards
-	hands         []Cards
-	roles         []Role
-	claims        []*Cards
+	RevealedCards Cards
+	Hands         []Cards
+	Roles         []Role
+	Claims        []*Cards
 }
 
 func NewGame(players int) (Game, error) {
@@ -131,47 +131,47 @@ func NewGame(players int) (Game, error) {
 		return g, fmt.Errorf("invalid player count: %d, must be 3-10", players)
 	}
 	g.playerCount = Player(players)
-	g.claims = make([]*Cards, players)
-	g.hands = make([]Cards, players)
+	g.Claims = make([]*Cards, players)
+	g.Hands = make([]Cards, players)
 	roles := roleDeck(g.playerCount)
 	for i := Player(0); i < g.playerCount; i++ {
-		g.roles = append(g.roles, roles.draw())
+		g.Roles = append(g.Roles, roles.draw())
 	}
 	g.deal()
 	return g, nil
 }
 
 func (g *Game) Claim(player Player, claim Cards) error {
-	if s := g.state(); s != StateClaiming {
-		return fmt.Errorf("palyer: %d tried to claim in state %v", player, s)
+	if s := g.State(); s != StateClaiming {
+		return fmt.Errorf("palyer: %d tried to claim in State %v", player, s)
 	}
-	g.claims[player] = &claim
+	g.Claims[player] = &claim
 	return nil
 }
 
 func (g *Game) Play(from, to Player) error {
-	if s := g.state(); s != StatePlaying {
-		return fmt.Errorf("player: %d tried to play in state %v", from, s)
+	if s := g.State(); s != StatePlaying {
+		return fmt.Errorf("player: %d tried to play in State %v", from, s)
 	}
 	if g.currentPlayer != from {
 		return fmt.Errorf("player: %d tried to play, but currentPlayer is: %d", from, g.currentPlayer)
 	}
 	g.currentPlayer = to
-	card := g.hands[to].draw()
+	card := g.Hands[to].draw()
 	switch card {
 	case CardNeutral:
-		g.revealedCards.Neutral++
+		g.RevealedCards.Neutral++
 	case CardGood:
-		g.revealedCards.Good++
+		g.RevealedCards.Good++
 	case CardBad:
-		g.revealedCards.Bad++
+		g.RevealedCards.Bad++
 	}
 	if g.cardsPlayedInRound() != 0 {
 		return nil
 	}
 	// round ended
 	for p := Player(0); p < g.playerCount; p++ {
-		g.claims[p] = nil
+		g.Claims[p] = nil
 	}
 	g.deal()
 	return nil
@@ -179,13 +179,13 @@ func (g *Game) Play(from, to Player) error {
 
 func (g *Game) deal() {
 	deck := cardDeck(g.playerCount)
-	deck.Neutral -= g.revealedCards.Neutral
-	deck.Good -= g.revealedCards.Good
-	deck.Bad -= g.revealedCards.Bad
+	deck.Neutral -= g.RevealedCards.Neutral
+	deck.Good -= g.RevealedCards.Good
+	deck.Bad -= g.RevealedCards.Bad
 	toDraw := 5 - g.round()
 	for p := Player(0); p < g.playerCount; p++ {
-		g.hands[p] = Cards{}
-		cards := &g.hands[p]
+		g.Hands[p] = Cards{}
+		cards := &g.Hands[p]
 		for i := uint8(0); i < toDraw; i++ {
 			card := deck.draw()
 			switch card {
@@ -201,25 +201,25 @@ func (g *Game) deal() {
 }
 
 func (g *Game) round() uint8 {
-	return g.revealedCards.sum() / uint8(g.playerCount)
+	return g.RevealedCards.sum() / uint8(g.playerCount)
 }
 
 func (g *Game) cardsPlayedInRound() uint8 {
-	return g.revealedCards.sum() % uint8(g.playerCount)
+	return g.RevealedCards.sum() % uint8(g.playerCount)
 }
 
-func (g *Game) state() State {
+func (g *Game) State() State {
 	deck := cardDeck(g.playerCount)
-	if g.revealedCards.Bad == deck.Bad {
+	if g.RevealedCards.Bad == deck.Bad {
 		return StateWinBad
 	}
-	if g.revealedCards.Good == deck.Good {
+	if g.RevealedCards.Good == deck.Good {
 		return StateWinGood
 	}
 	if g.round() == 4 {
 		return StateWinBad
 	}
-	for _, c := range g.claims {
+	for _, c := range g.Claims {
 		if c == nil {
 			return StateClaiming
 		}

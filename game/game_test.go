@@ -73,45 +73,45 @@ func TestHappyPathGoodWin(t *testing.T) {
 	}
 	g := testGame{game, t}
 	g.claimTruth()
-	// manipulate hands to get some known state
+	// manipulate Hands to get some known State
 	// 4 player deck: 12, 6, 2
-	g.hands[0] = Cards{0, 5, 0}
-	g.hands[1] = Cards{5, 0, 0}
-	g.hands[2] = Cards{2, 1, 2}
-	g.hands[3] = Cards{5, 0, 0}
+	g.Hands[0] = Cards{0, 5, 0}
+	g.Hands[1] = Cards{5, 0, 0}
+	g.Hands[2] = Cards{2, 1, 2}
+	g.Hands[3] = Cards{5, 0, 0}
 	g.tPlay(0, 1)
 	g.tPlay(1, 0)
 	g.tPlay(0, 1)
 	g.tPlay(1, 0)
 	g.claimTruth()
 	// deck: 10, 4, 2
-	g.hands[0] = Cards{0, 4, 0}
-	g.hands[1] = Cards{4, 0, 0}
-	g.hands[2] = Cards{4, 0, 0}
-	g.hands[3] = Cards{2, 0, 2}
+	g.Hands[0] = Cards{0, 4, 0}
+	g.Hands[1] = Cards{4, 0, 0}
+	g.Hands[2] = Cards{4, 0, 0}
+	g.Hands[3] = Cards{2, 0, 2}
 	g.tPlay(0, 1)
 	g.tPlay(1, 0)
 	g.tPlay(0, 1)
 	g.tPlay(1, 0)
 	g.claimTruth()
 	// deck: 8, 2, 2
-	g.hands[0] = Cards{1, 2, 0}
-	g.hands[1] = Cards{3, 0, 0}
-	g.hands[2] = Cards{3, 0, 0}
-	g.hands[3] = Cards{1, 0, 2}
+	g.Hands[0] = Cards{1, 2, 0}
+	g.Hands[1] = Cards{3, 0, 0}
+	g.Hands[2] = Cards{3, 0, 0}
+	g.Hands[3] = Cards{1, 0, 2}
 	g.tPlay(0, 1)
 	g.tPlay(1, 0)
 	g.tPlay(0, 1)
 	g.tPlay(1, 0)
 	g.claimTruth()
 	// deck: 5, 1, 2
-	g.hands[0] = Cards{1, 1, 0}
-	g.hands[1] = Cards{2, 0, 0}
-	g.hands[2] = Cards{2, 0, 0}
-	g.hands[3] = Cards{0, 0, 2}
+	g.Hands[0] = Cards{1, 1, 0}
+	g.Hands[1] = Cards{2, 0, 0}
+	g.Hands[2] = Cards{2, 0, 0}
+	g.Hands[3] = Cards{0, 0, 2}
 	g.tPlay(0, 1)
 	g.tPlay(1, 0)
-	if g.state() != StateWinGood {
+	if g.State() != StateWinGood {
 		t.Fatal("expected good to win")
 	}
 }
@@ -125,34 +125,34 @@ func TestHappyPathBadWinBadCards(t *testing.T) {
 	g := testGame{game, t}
 	g.claimTruth()
 	// 4 player deck: 12, 6, 2
-	g.hands[0] = Cards{0, 5, 0}
-	g.hands[1] = Cards{5, 0, 0}
-	g.hands[2] = Cards{2, 1, 2}
-	g.hands[3] = Cards{5, 0, 0}
+	g.Hands[0] = Cards{0, 5, 0}
+	g.Hands[1] = Cards{5, 0, 0}
+	g.Hands[2] = Cards{2, 1, 2}
+	g.Hands[3] = Cards{5, 0, 0}
 	g.tPlay(0, 2)
 	g.tPlay(2, 0)
 	g.tPlay(0, 2)
 	g.tPlay(2, 0)
 	g.claimTruth()
 	// deck: 12, 3, 1
-	g.hands[0] = Cards{1, 3, 0}
-	g.hands[1] = Cards{4, 0, 0}
-	g.hands[2] = Cards{3, 0, 1}
-	g.hands[3] = Cards{4, 0, 0}
+	g.Hands[0] = Cards{1, 3, 0}
+	g.Hands[1] = Cards{4, 0, 0}
+	g.Hands[2] = Cards{3, 0, 1}
+	g.Hands[3] = Cards{4, 0, 0}
 	g.tPlay(0, 2)
 	g.tPlay(2, 0)
 	g.tPlay(0, 2)
 	g.tPlay(2, 0)
 	g.claimTruth()
 	// deck: 9, 2, 1
-	g.hands[0] = Cards{1, 2, 0}
-	g.hands[1] = Cards{3, 0, 0}
-	g.hands[2] = Cards{2, 0, 1}
-	g.hands[3] = Cards{3, 0, 0}
+	g.Hands[0] = Cards{1, 2, 0}
+	g.Hands[1] = Cards{3, 0, 0}
+	g.Hands[2] = Cards{2, 0, 1}
+	g.Hands[3] = Cards{3, 0, 0}
 	g.tPlay(0, 2)
 	g.tPlay(2, 0)
 	g.tPlay(0, 2)
-	if g.state() != StateWinBad || g.revealedCards.Bad != 2 {
+	if g.State() != StateWinBad || g.RevealedCards.Bad != 2 {
 		t.Fatal("expected bad to win by discovering 2 bad cards")
 	}
 }
@@ -167,46 +167,46 @@ func TestHappyPathBadWinTurnsExhausted(t *testing.T) {
 	g.currentPlayer = 1
 	g.claimTruth()
 	// 4 player deck: 12, 6, 2
-	g.hands[0] = Cards{0, 5, 0}
-	g.hands[1] = Cards{5, 0, 0}
-	g.hands[2] = Cards{2, 1, 2}
-	g.hands[3] = Cards{5, 0, 0}
+	g.Hands[0] = Cards{0, 5, 0}
+	g.Hands[1] = Cards{5, 0, 0}
+	g.Hands[2] = Cards{2, 1, 2}
+	g.Hands[3] = Cards{5, 0, 0}
 	g.tPlay(1, 3)
 	g.tPlay(3, 1)
 	g.tPlay(1, 3)
 	g.tPlay(3, 1)
 	g.claimTruth()
 	// deck: 8, 6, 2
-	g.hands[0] = Cards{0, 4, 0}
-	g.hands[1] = Cards{4, 0, 0}
-	g.hands[2] = Cards{0, 2, 2}
-	g.hands[3] = Cards{4, 0, 0}
+	g.Hands[0] = Cards{0, 4, 0}
+	g.Hands[1] = Cards{4, 0, 0}
+	g.Hands[2] = Cards{0, 2, 2}
+	g.Hands[3] = Cards{4, 0, 0}
 	g.tPlay(1, 3)
 	g.tPlay(3, 1)
 	g.tPlay(1, 3)
 	g.tPlay(3, 1)
 	g.claimTruth()
 	// deck: 4, 6, 2
-	g.hands[0] = Cards{0, 2, 1}
-	g.hands[1] = Cards{2, 1, 0}
-	g.hands[2] = Cards{0, 2, 1}
-	g.hands[3] = Cards{2, 1, 0}
+	g.Hands[0] = Cards{0, 2, 1}
+	g.Hands[1] = Cards{2, 1, 0}
+	g.Hands[2] = Cards{0, 2, 1}
+	g.Hands[3] = Cards{2, 1, 0}
 	g.tPlay(1, 3)
 	g.tPlay(3, 1)
 	g.tPlay(1, 3)
 	g.tPlay(3, 1)
 	g.claimTruth()
 	// deck: 0, 6, 2
-	g.hands[0] = Cards{0, 1, 1}
-	g.hands[1] = Cards{1, 1, 0}
-	g.hands[2] = Cards{0, 1, 1}
-	g.hands[3] = Cards{0, 2, 0}
+	g.Hands[0] = Cards{0, 1, 1}
+	g.Hands[1] = Cards{1, 1, 0}
+	g.Hands[2] = Cards{0, 1, 1}
+	g.Hands[3] = Cards{0, 2, 0}
 	g.tPlay(1, 3)
 	g.tPlay(3, 1)
 	g.tPlay(1, 3)
 	g.tPlay(3, 1)
-	if g.state() != StateWinBad || g.revealedCards.Good == 6 {
-		t.Fatalf("expected bad to win by playing 4 turns without finding all good cards, got %v", g.state())
+	if g.State() != StateWinBad || g.RevealedCards.Good == 6 {
+		t.Fatalf("expected bad to win by playing 4 turns without finding all good cards, got %v", g.State())
 	}
 }
 
@@ -237,13 +237,13 @@ func (g *testGame) tClaim(p Player, c Cards) {
 
 func (g *testGame) claimTruth() {
 	g.Helper()
-	if g.state() != StateClaiming {
+	if g.State() != StateClaiming {
 		g.Fatal("expected to be claiming")
 	}
 	for p := Player(0); p < g.playerCount; p++ {
-		g.tClaim(p, g.hands[p])
+		g.tClaim(p, g.Hands[p])
 	}
-	if g.state() != StatePlaying {
+	if g.State() != StatePlaying {
 		g.Fatal("expected to be playing")
 	}
 }
@@ -260,22 +260,22 @@ func (g *testGame) invariants() {
 
 func (g *testGame) ensureSizes() {
 	g.Helper()
-	if len(g.hands) != int(g.playerCount) {
-		g.Errorf("expected as many hands: %d as players %d", len(g.hands), g.playerCount)
+	if len(g.Hands) != int(g.playerCount) {
+		g.Errorf("expected as many Hands: %d as players %d", len(g.Hands), g.playerCount)
 	}
-	if len(g.roles) != int(g.playerCount) {
-		g.Errorf("expected as many roles: %d as players: %d", len(g.roles), g.playerCount)
+	if len(g.Roles) != int(g.playerCount) {
+		g.Errorf("expected as many Roles: %d as players: %d", len(g.Roles), g.playerCount)
 	}
-	if len(g.claims) != int(g.playerCount) {
-		g.Errorf("expected as many claims: %d as players: %d", len(g.claims), g.playerCount)
+	if len(g.Claims) != int(g.playerCount) {
+		g.Errorf("expected as many Claims: %d as players: %d", len(g.Claims), g.playerCount)
 	}
 }
 
 func (g *testGame) ensureCards() {
 	g.Helper()
-	sum := g.revealedCards
+	sum := g.RevealedCards
 	for i := Player(0); i < g.playerCount; i++ {
-		hand := g.hands[i]
+		hand := g.Hands[i]
 		sum.Neutral += hand.Neutral
 		sum.Good += hand.Good
 		sum.Bad += hand.Bad
@@ -292,13 +292,13 @@ func (g *testGame) ensureHandSize() {
 		return
 	}
 	for p := Player(1); p < g.playerCount; p++ {
-		if g.hands[p-1].sum() != g.hands[p].sum() {
+		if g.Hands[p-1].sum() != g.Hands[p].sum() {
 			g.Errorf(
 				"expected player: %d with cards %+v and player: %d with cards %+v to have same amount of cards",
 				p-1,
-				g.hands[p-1],
+				g.Hands[p-1],
 				p,
-				g.hands[p],
+				g.Hands[p],
 			)
 		}
 	}

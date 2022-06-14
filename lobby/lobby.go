@@ -20,17 +20,19 @@ Or is just timing out the lobby enough?
 One Player should be host. Hos should have special rights like removing players from lobby.
 */
 
-var lobbies struct {
+var lobbies = struct {
 	sync.RWMutex
 	ls map[uint64]Lobby
+}{
+	ls: map[uint64]Lobby{},
 }
 
 type Player struct {
 	name     string
 	token    string
 	lastSeen time.Time
-	channel  *chan string
-	uuid     game.Player
+	channel  *chan Message
+	position game.Player
 }
 
 type Lobby struct {
@@ -39,15 +41,15 @@ type Lobby struct {
 	players []Player
 }
 
-func (player *Player) register(channel *chan string) {
+func (player *Player) Register(channel *chan Message) {
 	player.channel = channel
 }
 
-func (player *Player) unregisterChannel() {
+func (player *Player) UnregisterChannel() {
 	player.channel = nil
 }
 
-func (l *Lobby) NewPlayer(name string, token string, channel *chan string) Player {
+func (l *Lobby) NewPlayer(name string, token string, channel *chan Message) Player {
 	return Player{name, token, time.Now(), channel, game.Player(len(l.players))}
 }
 
@@ -85,6 +87,53 @@ func (l *Lobby) Join(name string) (Player, error) {
 
 	// TODO update player views?
 	return player, nil
+}
+
+func (l *Lobby) Claim(player Player, claim game.Cards) {
+	err := l.game.Claim(player.position, claim)
+	if err != nil {
+		l.broadcast(&ClaimMessage{err: err})
+	} else {
+		l.broadcast(&ClaimMessage{Cards: *l.game.Claims[player.position]})
+	}
+}
+
+func (l *Lobby) Play(from, to Player) {
+	err := l.game.Play(from.position, to.position)
+	if err != nil {
+		l.broadcast(&RevealCardMessage{err: err})
+	} else {
+		l.broadcast(&RevealCardMessage{Cards: l.game.RevealedCards})
+	}
+}
+
+func (l *Lobby) GetRole(from Player) {
+	if len(l.game.Roles) < int(from.position) {
+		err := fmt.Errorf("player position is not seated %d", from.position)
+		*from.channel <- &RoleMessage{err: err}
+
+	} else {
+		*from.channel <- &RoleMessage{Role: l.game.Roles[from.position]}
+	}
+}
+func (l *Lobby) GetHand(from Player) error {
+	if len(l.game.Hands) < int(from.position) {
+		return fmt.Errorf("player position is not seated %d", from.position)
+	}
+	*from.channel <- &HandMessage{Cards: l.game.Hands[from.position]}
+	return nil
+}
+
+func (l *Lobby) GetGameState() {
+	l.broadcast(&StateMessage{State: l.game.State()})
+}
+func (l *Lobby) broadcast(message Message) {
+	for _, p := range l.players {
+		if p.channel == nil {
+			message.SetError(fmt.Errorf("player %d has no channel attached", p.position))
+		}
+		*p.channel <- message
+	}
 }
 
 func (l *Lobby) Start() error {
