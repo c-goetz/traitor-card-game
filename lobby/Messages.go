@@ -9,30 +9,25 @@ type Message interface {
 }
 
 type ClaimMessage struct {
-	Message
 	err   error
 	Cards game.Cards
 }
 type RevealCardMessage struct {
-	Message
 	err   error
 	Cards game.Cards
 }
 
 type RoleMessage struct {
-	Message
 	err  error
 	Role game.Role
 }
 
 type StateMessage struct {
-	Message
 	err   error
 	State game.State
 }
 
 type HandMessage struct {
-	Message
 	err   error
 	Cards game.Cards
 }
