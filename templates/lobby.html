@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang=en>
+<head>
+    <meta charset=utf-8>
+    <title>{{ .Static.Title }}</title>
+    <script src="/static/htmx.js"></script>
+    <script src="/static/sse.js"></script>
+    <script>
+    window.onload = function(e) {
+        {{ if .Initial }}
+        history.replaceState(null, "", "/lobby?id={{ .LobbyId }}")
+        {{ end }}
+        htmx.process(document.body)
+    }
+    </script>
+</head>
+<body hx-headers='{"pid": {{ .Player }}}'>
+    <h1>{{ .Static.Lobby }}</h1>
+    <!-- TODO max len? -->
+    <label for="name">{{ .Static.PlayerName }}</label>
+    <input id="name" type="text" value="{{ .Player.Name }}"/>
+    <div hx-ext="sse" sse-connect="/sse?id={{ .LobbyId }}" swap="players">
+        Fancy Player List
+    </div>
+</body>
+</html>
+

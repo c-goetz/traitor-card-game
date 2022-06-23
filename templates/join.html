@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang=en>
+<head>
+    <meta charset=utf-8>
+    <title>{{ .Static.Title }}</title>
+</head>
+<body>
+    <h1>{{ .Static.Join }}</h1>
+    <form method="get" action="/lobby">
+        <label for="lobby">{{ .Static.LobbyId }}</label>
+        <input id="lobby" type="text"/>
+    </form>
+</body>
+</html>
+
