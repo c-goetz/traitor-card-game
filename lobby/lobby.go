@@ -49,6 +49,10 @@ func (player *Player) UnregisterChannel() {
 	player.channel = nil
 }
 
+func (player *Player) SetName(name string) {
+	player.Name = name
+}
+
 func (l *Lobby) NewPlayer(name string, token string, channel *chan Message) Player {
 	return Player{name, token, time.Now(), channel, game.Player(len(l.players))}
 }
@@ -94,7 +98,7 @@ func (l *Lobby) Join(name string) (Player, error) {
 	return player, nil
 }
 
-func (l *Lobby) Claim(player Player, claim game.Cards) {
+func (l *Lobby) Claim(player *Player, claim game.Cards) {
 	err := l.game.Claim(player.position, claim)
 	if err != nil {
 		l.broadcast(&ClaimMessage{err: err})
@@ -103,7 +107,7 @@ func (l *Lobby) Claim(player Player, claim game.Cards) {
 	}
 }
 
-func (l *Lobby) Play(from, to Player) {
+func (l *Lobby) Play(from, to *Player) {
 	err := l.game.Play(from.position, to.position)
 	if err != nil {
 		l.broadcast(&RevealCardMessage{err: err})
@@ -112,16 +116,15 @@ func (l *Lobby) Play(from, to Player) {
 	}
 }
 
-func (l *Lobby) GetRole(from Player) {
+func (l *Lobby) GetRole(from *Player) {
 	if len(l.game.Roles) < int(from.position) {
 		err := fmt.Errorf("player position is not seated %d", from.position)
 		*from.channel <- &RoleMessage{err: err}
-
 	} else {
 		*from.channel <- &RoleMessage{Role: l.game.Roles[from.position]}
 	}
 }
-func (l *Lobby) GetHand(from Player) error {
+func (l *Lobby) GetHand(from *Player) error {
 	if len(l.game.Hands) < int(from.position) {
 		return fmt.Errorf("player position is not seated %d", from.position)
 	}
