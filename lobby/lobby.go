@@ -22,9 +22,9 @@ One Player should be host. Hos should have special rights like removing players 
 
 var lobbies = struct {
 	sync.RWMutex
-	ls map[uint64]Lobby
+	ls map[uint]*Lobby
 }{
-	ls: map[uint64]Lobby{},
+	ls: map[uint]*Lobby{},
 }
 
 type Player struct {
@@ -36,79 +36,118 @@ type Player struct {
 }
 
 type Lobby struct {
+	sync.RWMutex
 	game    *game.Game
-	Uuid    uint64
+	Uuid    uint
 	players []Player
 }
 
-func (player *Player) Register(channel *chan Message) {
-	player.channel = channel
+func Register(lobby, player uint, channel *chan Message) {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	l := lobbies.ls[lobby]
+	l.Lock()
+	defer l.Unlock()
+
+	l.players[player].channel = channel
 }
 
-func (player *Player) UnregisterChannel() {
-	player.channel = nil
+func UnregisterChannel(lobby, player uint) {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	l := lobbies.ls[lobby]
+	l.Lock()
+	defer l.Unlock()
+
+	l.players[player].channel = nil
 }
 
-func (player *Player) SetName(name string) {
-	player.Name = name
+func SetName(lobby, player uint, name string) {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	l := lobbies.ls[lobby]
+	l.Lock()
+	defer l.Unlock()
+
+	l.players[player].Name = name
 }
 
 func (l *Lobby) NewPlayer(name string, token string, channel *chan Message) Player {
 	return Player{name, token, time.Now(), channel, game.Player(len(l.players))}
 }
 
-func CreateLobby(host string) (*Player, *Lobby, error) {
-	lobbyUID, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+// CreateLobby Creates Lobby and Host
+// First player is always Host
+// Return Lobby number
+func CreateLobby(host string) (uint, error) {
+	lobbies.Lock()
+	lobbyUID, err := rand.Int(rand.Reader, big.NewInt(math.MaxUint32))
 	if err != nil {
-		return nil, nil, fmt.Errorf("generating Lobby UID: %v", err)
+		return 0, fmt.Errorf("generating Lobby UID: %v", err)
 	}
-	id := lobbyUID.Uint64()
+	id := uint(lobbyUID.Uint64())
 	lobby := Lobby{
+		sync.RWMutex{},
 		nil,
 		id,
 		[]Player{},
 	}
-	player, err := lobby.Join(host)
+	lobbies.ls[id] = &lobby
+	lobbies.Unlock()
+	_, err = Join(id, host)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not create player with name: %v", host)
+		return 0, fmt.Errorf("could not create player with name: %v %s", host, err)
 	}
-	lobbies.Lock()
-	defer lobbies.Unlock()
-	lobbies.ls[id] = lobby
-	return &player, &lobby, nil
+	return id, nil
 }
 
-func (l *Lobby) Join(name string) (Player, error) {
+func Join(lobby uint, name string) (uint, error) {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	if _, ok := lobbies.ls[lobby]; !ok {
+		return 0, fmt.Errorf("lobby not found %d", lobby)
+	}
+	l := lobbies.ls[lobby]
+	l.Lock()
+	defer l.Unlock()
+
 	if n := len(l.players); n == 10 {
-		return Player{}, errors.New("max lobby size reached")
+		return 0, errors.New("max lobby size reached")
 	}
 	for _, player := range l.players {
 		if player.Name == name {
-			return Player{}, fmt.Errorf("player with name %s already joined", player.Name)
+			return 0, fmt.Errorf("player with name %s already joined", player.Name)
 		}
 	}
 	token, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
-		return Player{}, fmt.Errorf("generating token: %v", err)
+		return 0, fmt.Errorf("generating token: %v", err)
 	}
 	player := l.NewPlayer(name, token.String(), nil)
 	l.players = append(l.players, player)
 
 	// TODO update player views?
-	return player, nil
+	return uint(player.position), nil
 }
 
-func (l *Lobby) Claim(player *Player, claim game.Cards) {
-	err := l.game.Claim(player.position, claim)
+func Claim(lobby, player uint, claim game.Cards) {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	l := lobbies.ls[lobby]
+
+	err := l.game.Claim(game.Player(player), claim)
 	if err != nil {
 		l.broadcast(&ClaimMessage{err: err})
 	} else {
-		l.broadcast(&ClaimMessage{Cards: *l.game.Claims[player.position]})
+		l.broadcast(&ClaimMessage{Cards: *l.game.Claims[player]})
 	}
 }
 
-func (l *Lobby) Play(from, to *Player) {
-	err := l.game.Play(from.position, to.position)
+func Play(lobby, from, to uint) {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	l := lobbies.ls[lobby]
+	err := l.game.Play(game.Player(from), game.Player(to))
 	if err != nil {
 		l.broadcast(&RevealCardMessage{err: err})
 	} else {
@@ -116,25 +155,42 @@ func (l *Lobby) Play(from, to *Player) {
 	}
 }
 
-func (l *Lobby) GetRole(from *Player) {
-	if len(l.game.Roles) < int(from.position) {
-		err := fmt.Errorf("player position is not seated %d", from.position)
-		*from.channel <- &RoleMessage{err: err}
+func GetRole(lobby, from uint) {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	l := lobbies.ls[lobby]
+	l.RLock()
+	defer l.RUnlock()
+	player := l.players[from]
+	if len(l.game.Roles) < int(from) {
+		err := fmt.Errorf("player position is not seated %d", player.position)
+		*player.channel <- &RoleMessage{err: err}
 	} else {
-		*from.channel <- &RoleMessage{Role: l.game.Roles[from.position]}
+		*player.channel <- &RoleMessage{Role: l.game.Roles[player.position]}
 	}
 }
-func (l *Lobby) GetHand(from *Player) error {
-	if len(l.game.Hands) < int(from.position) {
-		return fmt.Errorf("player position is not seated %d", from.position)
+func GetHand(lobby, from uint) error {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	l := lobbies.ls[lobby]
+	l.RLock()
+	defer l.RUnlock()
+	player := l.players[from]
+
+	if len(l.game.Hands) < int(player.position) {
+		return fmt.Errorf("player position is not seated %d", player.position)
 	}
-	*from.channel <- &HandMessage{Cards: l.game.Hands[from.position]}
+	*player.channel <- &HandMessage{Cards: l.game.Hands[player.position]}
 	return nil
 }
 
-func (l *Lobby) GetGameState() {
+func GetGameState(lobby uint) {
+	lobbies.RLock()
+	defer lobbies.RUnlock()
+	l := lobbies.ls[lobby]
 	l.broadcast(&StateMessage{State: l.game.State()})
 }
+
 func (l *Lobby) broadcast(message Message) {
 	for _, p := range l.players {
 		if p.channel == nil {
@@ -144,9 +200,12 @@ func (l *Lobby) broadcast(message Message) {
 	}
 }
 
-func (l *Lobby) Start() error {
+func Start(lobby uint) error {
 	lobbies.Lock()
 	defer lobbies.Unlock()
+	l := lobbies.ls[lobby]
+	l.Lock()
+	defer l.Unlock()
 	n := len(l.players)
 	if n < 3 || n > 10 {
 		return fmt.Errorf("can't start with %d players", n)
@@ -156,19 +215,13 @@ func (l *Lobby) Start() error {
 		return err
 	}
 	l.game = &g
-	lobbies.ls[l.Uuid] = *l
-	// TODO update player views?
 	return nil
 }
-func (l *Lobby) Close() error {
+func Close(lobby uint) {
 	lobbies.Lock()
 	defer lobbies.Unlock()
 
-	if _, ok := lobbies.ls[l.Uuid]; ok {
-		delete(lobbies.ls, l.Uuid)
-	} else {
-		return fmt.Errorf("lobby not found UID: %v", l.Uuid)
+	if _, ok := lobbies.ls[lobby]; ok {
+		delete(lobbies.ls, lobby)
 	}
-
-	return nil
 }
